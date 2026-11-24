@@ -50,3 +50,18 @@ When reviewing the user's daily log against their war-plan and commitments, stru
 [Exactly ONE specific, time-bound, non-negotiable action order for tomorrow (e.g., "05:00: 60-minute deep work block on core module without internet connectivity. Non-negotiable.")]
 `;
 
+export function getSystemPrompt(language: string = "en"): string {
+  const lang = (language || "").toLowerCase().trim()
+
+  if (lang === "hi") {
+    return `CRITICAL INSTRUCTION: The user has selected Hindi. You MUST respond in Hindi (Devanagari script). The tone must still be brutal, stoic, and warrior-like.\n\n${IRON_MIND_SYSTEM_PROMPT}`
+  }
+
+  if (lang === "mr") {
+    return `CRITICAL INSTRUCTION: The user has selected Marathi. You MUST respond in Marathi (Devanagari script). The tone must still be brutal, stoic, and warrior-like.\n\n${IRON_MIND_SYSTEM_PROMPT}`
+  }
+
+  return IRON_MIND_SYSTEM_PROMPT
+}
+
+

@@ -14,9 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useTranslation } from "@/lib/translations"
 
 export default function NewGoalPage() {
   const router = useRouter()
+  const { t } = useTranslation()
 
   const [title, setTitle] = React.useState("")
   const [why, setWhy] = React.useState("")
@@ -229,7 +231,7 @@ export default function NewGoalPage() {
               disabled={isLoading}
               className="w-full h-11 bg-[#8B0000] hover:bg-[#6e0000] text-[#f5f5f5] font-bold uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              {isLoading ? "Locking in Objective..." : "Lock in Goal"}
+              {isLoading ? t("Locking in Objective...") : t("Lock in Goal")}
             </Button>
           </div>
         </form>

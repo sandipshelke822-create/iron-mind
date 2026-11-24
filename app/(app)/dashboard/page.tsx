@@ -3,13 +3,10 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { useTranslation } from "@/lib/translations"
 import { Button } from "@/components/ui/button"
 import {
   Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
 } from "@/components/ui/card"
 import {
   Target,
@@ -46,11 +43,14 @@ interface DailyReport {
   created_at: string
 }
 
-function calculateDaysRemaining(deadlineStr: string): { days: number; text: string } {
+function calculateDaysRemaining(
+  deadlineStr: string,
+  t: (key: string) => string
+): { days: number; text: string } {
   try {
     const parts = deadlineStr.split("T")[0].split("-")
     if (parts.length !== 3) {
-      return { days: 0, text: "DEADLINE PENDING" }
+      return { days: 0, text: t("DEADLINE PENDING") }
     }
     const [year, month, day] = parts.map(Number)
     const targetDate = new Date(year, month - 1, day)
@@ -62,16 +62,16 @@ function calculateDaysRemaining(deadlineStr: string): { days: number; text: stri
     const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
 
     if (diffDays > 1) {
-      return { days: diffDays, text: `${diffDays} DAYS REMAINING` }
+      return { days: diffDays, text: `${diffDays} ${t("DAYS REMAINING")}` }
     } else if (diffDays === 1) {
-      return { days: 1, text: "1 DAY REMAINING" }
+      return { days: 1, text: `1 ${t("DAY REMAINING")}` }
     } else if (diffDays === 0) {
-      return { days: 0, text: "DEADLINE IS TODAY" }
+      return { days: 0, text: t("DEADLINE IS TODAY") }
     } else {
-      return { days: diffDays, text: `${Math.abs(diffDays)} DAYS OVERDUE` }
+      return { days: diffDays, text: `${Math.abs(diffDays)} ${t("DAYS OVERDUE")}` }
     }
   } catch {
-    return { days: 0, text: "DEADLINE PENDING" }
+    return { days: 0, text: t("DEADLINE PENDING") }
   }
 }
 
@@ -144,6 +144,7 @@ function calculateStreak(reports: DailyReport[]): number {
 
 export default function DashboardPage() {
   const router = useRouter()
+  const { t } = useTranslation()
 
   const [isLoading, setIsLoading] = React.useState<boolean>(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -243,13 +244,13 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-2">
             <div className="text-xs uppercase font-mono tracking-widest font-bold text-[#8B0000]">
-              Headquarters Uplink
+              {t("Headquarters Uplink")}
             </div>
             <h2 className="text-xl font-bold uppercase tracking-tight text-[#f5f5f5]">
-              Loading Combat Dashboard
+              {t("Loading Combat Dashboard")}
             </h2>
             <p className="text-xs text-[#a3a3a3] font-mono leading-relaxed">
-              Verifying credentials and analyzing tactical history...
+              {t("Verifying credentials and analyzing tactical history...")}
             </p>
           </div>
         </div>
@@ -267,7 +268,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3 text-[#8B0000]">
             <AlertTriangle className="size-6 shrink-0" />
             <h1 className="text-lg font-bold uppercase tracking-wider">
-              Telemetry Error
+              {t("Telemetry Error")}
             </h1>
           </div>
           <p className="text-sm text-[#a3a3a3] font-mono leading-relaxed">
@@ -278,7 +279,7 @@ export default function DashboardPage() {
             className="w-full h-11 bg-[#8B0000] hover:bg-[#6e0000] text-[#f5f5f5] font-bold uppercase tracking-wider transition-colors cursor-pointer border border-[#8B0000] flex items-center justify-center gap-2"
           >
             <RefreshCw className="size-4" />
-            Retry Connection
+            {t("Retry Connection")}
           </Button>
         </div>
       </div>
@@ -300,14 +301,15 @@ export default function DashboardPage() {
 
           <div className="space-y-3">
             <div className="text-xs uppercase font-mono tracking-widest font-bold text-[#8B0000]">
-              Mission Directive
+              {t("Mission Directive")}
             </div>
             <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-[#f5f5f5]">
-              No active mission. Forge your first goal.
+              {t("No active mission. Forge your first goal.")}
             </h1>
             <p className="text-sm text-[#a3a3a3] font-mono leading-relaxed">
-              Without a clear, uncompromising target, discipline has no direction.
-              Commit your objective and establish your wartime standard.
+              {t(
+                "Without a clear, uncompromising target, discipline has no direction. Commit your objective and establish your wartime standard."
+              )}
             </p>
           </div>
 
@@ -316,7 +318,7 @@ export default function DashboardPage() {
               onClick={() => router.push("/goal/new")}
               className="w-full h-12 bg-[#8B0000] hover:bg-[#6e0000] text-[#f5f5f5] font-bold uppercase tracking-wider text-sm transition-colors border border-[#8B0000] cursor-pointer flex items-center justify-center gap-2"
             >
-              <span>Forge Your First Goal</span>
+              <span>{t("Forge Your First Goal")}</span>
               <ArrowRight className="size-4" />
             </Button>
           </div>
@@ -328,7 +330,7 @@ export default function DashboardPage() {
   // =========================================================================
   // 4. ACTIVE GOAL DASHBOARD
   // =========================================================================
-  const deadlineInfo = calculateDaysRemaining(goal.deadline)
+  const deadlineInfo = calculateDaysRemaining(goal.deadline, t)
   const lastScore = latestReport?.ai_score ?? null
   const directiveText =
     latestReport?.directive_tomorrow?.trim() ||
@@ -343,10 +345,10 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between border-b border-[#262626] pb-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-[#8B0000]/60 bg-[#8B0000]/15 px-3 py-1 text-xs font-bold uppercase tracking-widest text-[#8B0000]">
               <Crosshair className="size-3.5" />
-              Active Combat Objective
+              {t("Active Combat Objective")}
             </div>
             <div className="text-xs font-mono text-[#a3a3a3] uppercase tracking-wider hidden sm:block">
-              Daily Target: {goal.daily_hours}h
+              {t("Daily Target")}: {goal.daily_hours}h
             </div>
           </div>
 
@@ -358,7 +360,7 @@ export default function DashboardPage() {
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <div className="inline-flex items-center gap-2 text-xs font-mono text-[#a3a3a3] bg-[#1a1a1a] border border-[#262626] px-3 py-1.5 rounded-md">
                 <Calendar className="size-3.5 text-[#8B0000]" />
-                <span>DEADLINE: {formatDisplayDate(goal.deadline)}</span>
+                <span>{t("DEADLINE")}: {formatDisplayDate(goal.deadline)}</span>
               </div>
 
               <div
@@ -384,7 +386,7 @@ export default function DashboardPage() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <span className="text-xs font-mono font-bold tracking-widest text-[#a3a3a3] uppercase">
-                  DAYS UNBROKEN
+                  {t("DAYS UNBROKEN")}
                 </span>
                 <div className="size-9 rounded-lg bg-[#1a1a1a] border border-[#262626] flex items-center justify-center text-[#8B0000]">
                   <Flame className="size-5" />
@@ -399,10 +401,10 @@ export default function DashboardPage() {
             <div className="pt-4 border-t border-[#1f1f1f] mt-4">
               <p className="text-xs font-mono text-[#a3a3a3] uppercase tracking-wider">
                 {streak === 0
-                  ? "Streak at zero. Log today's mission to ignite."
+                  ? t("Streak at zero. Log today's mission to ignite.")
                   : streak === 1
-                  ? "1 consecutive day logged without failure."
-                  : `${streak} consecutive days logged without failure.`}
+                  ? `1 ${t("consecutive day logged without failure.")}`
+                  : `${streak} ${t("consecutive days logged without failure.")}`}
               </p>
             </div>
           </Card>
@@ -412,7 +414,7 @@ export default function DashboardPage() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <span className="text-xs font-mono font-bold tracking-widest text-[#a3a3a3] uppercase">
-                  LAST VERDICT SCORE
+                  {t("LAST VERDICT SCORE")}
                 </span>
                 <div className="size-9 rounded-lg bg-[#1a1a1a] border border-[#262626] flex items-center justify-center text-[#8B0000]">
                   <Target className="size-5" />
@@ -437,9 +439,9 @@ export default function DashboardPage() {
               <p className="text-xs font-mono text-[#a3a3a3] uppercase tracking-wider">
                 {lastScore !== null
                   ? lastScore < 5
-                    ? "Substandard performance. Correct course immediately."
-                    : "Standard satisfied. Maintain momentum."
-                  : "No prior verdict logged. Mission pending."}
+                    ? t("Substandard performance. Correct course immediately.")
+                    : t("Standard satisfied. Maintain momentum.")
+                  : t("No prior verdict logged. Mission pending.")}
               </p>
             </div>
           </Card>
@@ -452,12 +454,12 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2">
               <ShieldAlert className="size-4 text-[#8B0000]" />
               <span className="text-xs font-mono font-bold tracking-widest text-[#8B0000] uppercase">
-                TODAY&apos;S DIRECTIVE
+                {t("TODAY'S DIRECTIVE")}
               </span>
             </div>
             {latestReport?.date && (
               <span className="text-xs font-mono text-[#a3a3a3] uppercase tracking-wider">
-                From Verdict: {formatDisplayDate(latestReport.date)}
+                {t("From Verdict")}: {formatDisplayDate(latestReport.date)}
               </span>
             )}
           </div>
@@ -467,7 +469,7 @@ export default function DashboardPage() {
           </blockquote>
 
           <div className="text-[11px] font-mono uppercase tracking-wider text-[#a3a3a3]/70 pt-1">
-            Non-negotiable operational order. Carry out without deviation.
+            {t("Non-negotiable operational order. Carry out without deviation.")}
           </div>
         </div>
 
@@ -478,7 +480,7 @@ export default function DashboardPage() {
             onClick={() => router.push("/today")}
             className="w-full h-14 bg-[#8B0000] hover:bg-[#6e0000] text-[#f5f5f5] font-bold text-base uppercase tracking-widest transition-all cursor-pointer border border-[#8B0000] shadow-xl shadow-[#8B0000]/20 flex items-center justify-center gap-2"
           >
-            <span>Enter Today&apos;s Mission</span>
+            <span>{t("Enter Today's Mission")}</span>
             <ArrowRight className="size-5" />
           </Button>
         </div>
@@ -487,4 +489,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-

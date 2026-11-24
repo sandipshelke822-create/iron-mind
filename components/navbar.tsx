@@ -4,11 +4,13 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { useTranslation } from "@/lib/translations"
 import { LogOut, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 function NavLinks() {
   const pathname = usePathname()
+  const { t } = useTranslation()
 
   return (
     <div className="flex items-center gap-2 sm:gap-4">
@@ -21,7 +23,19 @@ function NavLinks() {
             : "text-[#a3a3a3] hover:text-[#f5f5f5] hover:bg-[#1a1a1a]/60"
         )}
       >
-        Dashboard
+        {t("Dashboard")}
+      </Link>
+
+      <Link
+        href="/profile"
+        className={cn(
+          "text-xs sm:text-sm font-semibold uppercase tracking-wider px-3 py-1.5 rounded-md transition-colors",
+          pathname === "/profile"
+            ? "text-[#f5f5f5] bg-[#1a1a1a] border border-[#262626]"
+            : "text-[#a3a3a3] hover:text-[#f5f5f5] hover:bg-[#1a1a1a]/60"
+        )}
+      >
+        {t("Profile")}
       </Link>
 
       <Link
@@ -33,27 +47,36 @@ function NavLinks() {
             : "text-[#a3a3a3] hover:text-[#f5f5f5] hover:bg-[#1a1a1a]/60"
         )}
       >
-        Settings
+        {t("Settings")}
       </Link>
     </div>
   )
 }
 
 function NavLinksFallback() {
+  const { t } = useTranslation()
+
   return (
     <div className="flex items-center gap-2 sm:gap-4">
       <Link
         href="/dashboard"
         className="text-xs sm:text-sm font-semibold uppercase tracking-wider px-3 py-1.5 rounded-md text-[#a3a3a3] hover:text-[#f5f5f5] hover:bg-[#1a1a1a]/60 transition-colors"
       >
-        Dashboard
+        {t("Dashboard")}
+      </Link>
+
+      <Link
+        href="/profile"
+        className="text-xs sm:text-sm font-semibold uppercase tracking-wider px-3 py-1.5 rounded-md text-[#a3a3a3] hover:text-[#f5f5f5] hover:bg-[#1a1a1a]/60 transition-colors"
+      >
+        {t("Profile")}
       </Link>
 
       <Link
         href="/settings"
         className="text-xs sm:text-sm font-semibold uppercase tracking-wider px-3 py-1.5 rounded-md text-[#a3a3a3] hover:text-[#f5f5f5] hover:bg-[#1a1a1a]/60 transition-colors"
       >
-        Settings
+        {t("Settings")}
       </Link>
     </div>
   )
@@ -61,6 +84,7 @@ function NavLinksFallback() {
 
 function SignOutButton() {
   const router = useRouter()
+  const { t } = useTranslation()
   const [isSigningOut, setIsSigningOut] = React.useState(false)
 
   const handleSignOut = async () => {
@@ -89,7 +113,7 @@ function SignOutButton() {
       ) : (
         <LogOut className="size-4 text-[#8B0000]" />
       )}
-      <span>Sign Out</span>
+      <span>{isSigningOut ? t("Signing Out...") : t("Sign Out")}</span>
     </button>
   )
 }

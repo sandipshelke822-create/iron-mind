@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { IRON_MIND_SYSTEM_PROMPT } from "@/lib/prompts"
+import { getSystemPrompt } from "@/lib/prompts"
 import { createClient } from "@/lib/supabase/server"
 import { getAIClient, callAI } from "@/lib/ai-client"
 
@@ -219,6 +219,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: message }, { status: 402 })
     }
 
+    // Fetch user language preference from user_settings table
+    const { data: settingsData } = await supabase
+      .from("user_settings")
+      .select("language")
+      .eq("user_id", user.id)
+      .maybeSingle()
+
+    const systemPrompt = getSystemPrompt(settingsData?.language || "en")
+
     const userPrompt = `
 TARGET ACQUISITION DETAILS:
 - Target Goal: ${title.trim()}
@@ -275,7 +284,7 @@ CRITICAL RULES:
     // 3. Invoke AI
     let responseText = ""
     try {
-      responseText = await callAI(aiClientResult, IRON_MIND_SYSTEM_PROMPT, userPrompt, 3000)
+      responseText = await callAI(aiClientResult, systemPrompt, userPrompt, 3000)
     } catch (aiError: unknown) {
       const message = aiError instanceof Error ? aiError.message : String(aiError)
       console.error("[generate-plan] AI API invocation failure:", aiError)

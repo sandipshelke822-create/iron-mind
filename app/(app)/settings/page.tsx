@@ -4,6 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { useTranslation, type Language } from "@/lib/translations"
 import {
   Card,
   CardHeader,
@@ -31,6 +32,7 @@ import {
   AlertCircle,
   Loader2,
   Shield,
+  Languages,
 } from "lucide-react"
 
 type AIProvider = "gemini" | "openai" | "anthropic" | "deepseek"
@@ -42,16 +44,30 @@ const PROVIDER_OPTIONS: Record<AIProvider, string> = {
   deepseek: "deepseek",
 }
 
+const LANGUAGE_OPTIONS: Record<Language, string> = {
+  en: "English",
+  hi: "Hindi",
+  mr: "Marathi",
+}
+
 export default function SettingsPage() {
   const router = useRouter()
+  const { language: contextLang, setLanguage: setContextLang, t } = useTranslation()
+
   const [aiProvider, setAiProvider] = React.useState<AIProvider>("gemini")
   const [apiKey, setApiKey] = React.useState("")
+  const [preferredLanguage, setPreferredLanguage] = React.useState<Language>(contextLang)
   const [userId, setUserId] = React.useState<string | null>(null)
 
   const [isLoading, setIsLoading] = React.useState(true)
   const [isSaving, setIsSaving] = React.useState(false)
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
+
+  // Sync preferredLanguage with contextLang if it updates
+  React.useEffect(() => {
+    setPreferredLanguage(contextLang)
+  }, [contextLang])
 
   React.useEffect(() => {
     let isMounted = true
@@ -74,7 +90,7 @@ export default function SettingsPage() {
 
         const { data, error } = await supabase
           .from("user_settings")
-          .select("ai_provider, api_key")
+          .select("ai_provider, api_key, language")
           .eq("user_id", user.id)
           .maybeSingle()
 
@@ -89,6 +105,13 @@ export default function SettingsPage() {
           }
           if (data.api_key) {
             setApiKey(data.api_key)
+          }
+          if (
+            data.language &&
+            (data.language === "en" || data.language === "hi" || data.language === "mr")
+          ) {
+            setPreferredLanguage(data.language as Language)
+            setContextLang(data.language as Language)
           }
         }
       } catch (err: unknown) {
@@ -105,7 +128,14 @@ export default function SettingsPage() {
     return () => {
       isMounted = false
     }
-  }, [router])
+  }, [router, setContextLang])
+
+  const handleLanguageChange = (val: string | null) => {
+    if (val === "en" || val === "hi" || val === "mr") {
+      setPreferredLanguage(val as Language)
+      setContextLang(val as Language)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -113,7 +143,7 @@ export default function SettingsPage() {
     setErrorMessage(null)
 
     if (!apiKey.trim()) {
-      setErrorMessage("API Key is required.")
+      setErrorMessage(t("API Key is required."))
       return
     }
 
@@ -145,6 +175,7 @@ export default function SettingsPage() {
             user_id: currentUserId,
             ai_provider: aiProvider,
             api_key: apiKey.trim(),
+            language: preferredLanguage,
             updated_at: new Date().toISOString(),
           },
           { onConflict: "user_id" }
@@ -153,7 +184,8 @@ export default function SettingsPage() {
       if (upsertError) {
         setErrorMessage(upsertError.message || "Failed to commit settings.")
       } else {
-        setSuccessMessage("Settings saved. The AI is now using your key.")
+        await setContextLang(preferredLanguage)
+        setSuccessMessage(t("Settings saved. The AI is now using your key."))
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -179,25 +211,27 @@ export default function SettingsPage() {
             )}
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>Back to Dashboard</span>
+            <span>{t("Back to Dashboard")}</span>
           </Link>
 
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#8B0000]">
             <Shield className="h-4 w-4" />
-            <span>AI Configuration</span>
+            <span>{t("AI Configuration")}</span>
           </div>
         </div>
 
         <Card className="bg-[#111111] border-[#262626] text-[#f5f5f5] p-6 sm:p-8 space-y-6 rounded-xl shadow-2xl">
           <CardHeader className="space-y-2 p-0 text-left">
             <div className="inline-block text-xs uppercase tracking-widest font-semibold text-[#8B0000]">
-              Custom Intelligence
+              {t("Custom Intelligence")}
             </div>
             <CardTitle className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#f5f5f5]">
-              AI Provider Settings
+              {t("AI Provider Settings")}
             </CardTitle>
             <CardDescription className="text-sm text-[#a3a3a3]">
-              Configure your personal AI credentials. Your key is stored securely with Row Level Security and used exclusively for your account operations.
+              {t(
+                "Configure your personal AI credentials. Your key is stored securely with Row Level Security and used exclusively for your account operations."
+              )}
             </CardDescription>
           </CardHeader>
 
@@ -206,7 +240,7 @@ export default function SettingsPage() {
               <div className="flex flex-col items-center justify-center py-12 space-y-3">
                 <Loader2 className="h-6 w-6 animate-spin text-[#8B0000]" />
                 <p className="text-xs tracking-wider uppercase text-[#a3a3a3]">
-                  Retrieving secure settings...
+                  {t("Retrieving secure settings...")}
                 </p>
               </div>
             ) : (
@@ -231,6 +265,50 @@ export default function SettingsPage() {
                   </div>
                 )}
 
+                {/* Preferred Language Select */}
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="preferred_language"
+                    className="text-xs font-semibold uppercase tracking-wider text-[#a3a3a3] flex items-center gap-2"
+                  >
+                    <Languages className="h-4 w-4 text-[#8B0000]" />
+                    <span>{t("Preferred Language")}</span>
+                  </Label>
+                  <Select
+                    value={preferredLanguage}
+                    onValueChange={handleLanguageChange}
+                    items={LANGUAGE_OPTIONS}
+                    disabled={isSaving}
+                  >
+                    <SelectTrigger
+                      id="preferred_language"
+                      className="w-full h-10 border-[#262626] bg-[#1a1a1a] text-[#f5f5f5] focus-visible:border-[#8B0000] focus-visible:ring-1 focus-visible:ring-[#8B0000] justify-between px-3"
+                    >
+                      <SelectValue placeholder={t("Select preferred language")} />
+                    </SelectTrigger>
+                    <SelectContent className="border-[#262626] bg-[#1a1a1a] text-[#f5f5f5]">
+                      <SelectItem
+                        value="en"
+                        className="focus:bg-[#8B0000]/20 focus:text-[#f5f5f5] cursor-pointer"
+                      >
+                        English
+                      </SelectItem>
+                      <SelectItem
+                        value="hi"
+                        className="focus:bg-[#8B0000]/20 focus:text-[#f5f5f5] cursor-pointer"
+                      >
+                        Hindi
+                      </SelectItem>
+                      <SelectItem
+                        value="mr"
+                        className="focus:bg-[#8B0000]/20 focus:text-[#f5f5f5] cursor-pointer"
+                      >
+                        Marathi
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* AI Provider Select */}
                 <div className="space-y-2">
                   <Label
@@ -238,7 +316,7 @@ export default function SettingsPage() {
                     className="text-xs font-semibold uppercase tracking-wider text-[#a3a3a3] flex items-center gap-2"
                   >
                     <Cpu className="h-4 w-4 text-[#8B0000]" />
-                    <span>AI Provider</span>
+                    <span>{t("AI Provider")}</span>
                   </Label>
                   <Select
                     value={aiProvider}
@@ -254,7 +332,7 @@ export default function SettingsPage() {
                       id="ai_provider"
                       className="w-full h-10 border-[#262626] bg-[#1a1a1a] text-[#f5f5f5] focus-visible:border-[#8B0000] focus-visible:ring-1 focus-visible:ring-[#8B0000] justify-between px-3"
                     >
-                      <SelectValue placeholder="Select AI provider" />
+                      <SelectValue placeholder={t("Select AI provider")} />
                     </SelectTrigger>
                     <SelectContent className="border-[#262626] bg-[#1a1a1a] text-[#f5f5f5]">
                       <SelectItem
@@ -292,7 +370,7 @@ export default function SettingsPage() {
                     className="text-xs font-semibold uppercase tracking-wider text-[#a3a3a3] flex items-center gap-2"
                   >
                     <KeyRound className="h-4 w-4 text-[#8B0000]" />
-                    <span>Enter your API Key</span>
+                    <span>{t("Enter your API Key")}</span>
                   </Label>
                   <Input
                     id="api_key"
@@ -303,7 +381,7 @@ export default function SettingsPage() {
                     disabled={isSaving}
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="Paste provider API key..."
+                    placeholder={t("Paste provider API key...")}
                     className="h-10 border-[#262626] bg-[#1a1a1a] text-[#f5f5f5] placeholder:text-[#a3a3a3]/40 focus-visible:border-[#8B0000] focus-visible:ring-1 focus-visible:ring-[#8B0000]"
                   />
                 </div>
@@ -318,10 +396,10 @@ export default function SettingsPage() {
                     {isSaving ? (
                       <span className="flex items-center justify-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Saving Configuration...</span>
+                        <span>{t("Saving Configuration...")}</span>
                       </span>
                     ) : (
-                      "Save Settings"
+                      t("Save Settings")
                     )}
                   </Button>
                 </div>
@@ -330,8 +408,8 @@ export default function SettingsPage() {
           </CardContent>
 
           <CardFooter className="p-0 border-t border-[#262626] pt-4 flex items-center justify-between text-xs text-[#a3a3a3]">
-            <span>Isolation: Encrypted via Supabase RLS</span>
-            <span className="font-mono text-[10px] text-[#a3a3a3]/60">IRON MIND CORE</span>
+            <span>{t("Isolation: Encrypted via Supabase RLS")}</span>
+            <span className="font-mono text-[10px] text-[#a3a3a3]/60">{t("IRON MIND CORE")}</span>
           </CardFooter>
         </Card>
       </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { IRON_MIND_SYSTEM_PROMPT } from "@/lib/prompts"
+import { getSystemPrompt } from "@/lib/prompts"
 import { createClient } from "@/lib/supabase/server"
 import { getAIClient, callAI } from "@/lib/ai-client"
 
@@ -217,6 +217,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: message }, { status: 402 })
     }
 
+    // Fetch user language preference from user_settings table
+    const { data: settingsData } = await supabase
+      .from("user_settings")
+      .select("language")
+      .eq("user_id", user.id)
+      .maybeSingle()
+
+    const systemPrompt = getSystemPrompt(settingsData?.language || "en")
+
     // 5. Construct prompt for Claude
     const formattedPlannedTasks = formatTaskList(plannedTasks)
     const formattedCompletedTasks = formatTaskList(completedTasks)
@@ -262,7 +271,7 @@ JSON STRUCTURE REQUIRED:
     // 6. Invoke AI
     let responseText = ""
     try {
-      responseText = await callAI(aiClientResult, IRON_MIND_SYSTEM_PROMPT, userPrompt, 1500)
+      responseText = await callAI(aiClientResult, systemPrompt, userPrompt, 1500)
     } catch (aiError: unknown) {
       const message =
         aiError instanceof Error ? aiError.message : String(aiError)
