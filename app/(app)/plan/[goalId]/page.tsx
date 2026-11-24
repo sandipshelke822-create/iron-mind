@@ -72,6 +72,14 @@ export interface Goal {
   user_id: string
   title: string
   why: string
+  why_image_url?: string | null
+  sacrifice_cost?: string | null
+  stop_doing_list?: string | null
+  decision_deadline?: string | null
+  routine?: {
+    wake_up_time?: string | null
+    sleep_time?: string | null
+  } | null
   deadline: string
   daily_hours: number
   current_level: string
@@ -431,6 +439,9 @@ function BattlePlanContent({ params }: PageProps) {
           deadline: fetchedGoal.deadline,
           dailyHours: fetchedGoal.daily_hours,
           currentLevel: fetchedGoal.current_level,
+          routine: fetchedGoal.routine,
+          sacrifice_cost: fetchedGoal.sacrifice_cost,
+          stop_doing_list: fetchedGoal.stop_doing_list,
         }),
       })
 

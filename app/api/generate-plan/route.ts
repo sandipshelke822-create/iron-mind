@@ -27,7 +27,12 @@ export interface WarPlan {
   assessment: string
   weekly_milestones: WeeklyMilestone[]
   day_1_plan: Day1Plan
-  warrior_note: string;
+  warrior_note: string
+}
+
+interface RoutineConfig {
+  wake_up_time?: string | null
+  sleep_time?: string | null
 }
 
 interface GeneratePlanRequestBody {
@@ -37,6 +42,11 @@ interface GeneratePlanRequestBody {
   deadline: string
   dailyHours: number | string
   currentLevel: string
+  routine?: RoutineConfig | null
+  sacrifice_cost?: string | null
+  sacrificeCost?: string | null
+  stop_doing_list?: string | null
+  stopDoingList?: string | null
 }
 
 function calculateDaysRemaining(deadlineStr: string): number {
@@ -210,7 +220,37 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 2. Retrieve BYOK AI client for this user
+    // 2. Fetch the goal record from Supabase to retrieve routine, sacrifice_cost, and stop_doing_list
+    const { data: goalRecord, error: goalFetchError } = await supabase
+      .from("goals")
+      .select("routine, sacrifice_cost, stop_doing_list")
+      .eq("id", goalId)
+      .eq("user_id", user.id)
+      .maybeSingle()
+
+    if (goalFetchError) {
+      console.warn("[generate-plan] Could not fetch goal record details:", goalFetchError.message)
+    }
+
+    const routine: RoutineConfig =
+      body.routine || (goalRecord?.routine as RoutineConfig) || {}
+    const sacrificeCost = (
+      body.sacrifice_cost ||
+      body.sacrificeCost ||
+      goalRecord?.sacrifice_cost ||
+      ""
+    ).trim()
+    const stopDoingList = (
+      body.stop_doing_list ||
+      body.stopDoingList ||
+      goalRecord?.stop_doing_list ||
+      ""
+    ).trim()
+
+    const wakeUpTime = routine.wake_up_time?.trim() || "05:00"
+    const sleepTime = routine.sleep_time?.trim() || "22:00"
+
+    // 3. Retrieve BYOK AI client for this user
     let aiClientResult: Awaited<ReturnType<typeof getAIClient>>
     try {
       aiClientResult = await getAIClient(user.id)
@@ -236,9 +276,12 @@ TARGET ACQUISITION DETAILS:
 - Days Remaining: ${daysLeft} days
 - Dedicated Daily Hours: ${numericDailyHours} hours/day
 - Current Baseline Level: ${currentLevel.trim()}
+- Daily Routine: Wake Up at ${wakeUpTime}, Sleep at ${sleepTime}
+- Sacrifice Cost: ${sacrificeCost || "Not specified (demand extreme ownership)"}
+- Stop Doing List: ${stopDoingList || "Not specified (demand elimination of vices and distractions)"}
 
 TACTICAL MISSION:
-As IRON MIND, engineer a ruthless, highly structured War Plan for this user based on their stated goal, baseline level, allocated time, and deadline urgency.
+As IRON MIND, engineer a ruthless, highly structured War Plan for this user based on their stated goal, baseline level, allocated time, routine schedule, and deadline urgency.
 
 URGENCY CONTEXT:
 The user has ${daysLeft} days remaining. ${
@@ -256,7 +299,10 @@ CRITICAL RULES:
 4. Adhere strictly to the zero-emojis rule. Never include emojis anywhere.
 5. In "day_1_plan", provide concrete, realistic time blocks that distribute the user's ${numericDailyHours} daily hours with precision.
 6. Each block "type" must be strictly one of: "deep_work", "revision", "test", or "rest".
-7. The JSON must have this exact shape:
+7. THE SEED RULE: Do NOT overwhelm the user on Day 1. Day 1 must only be about setup and tiny wins (e.g., creating accounts, gathering tools, writing down the idea). Day 2 should be slightly bigger. Build the habit first.
+8. ROUTINE RULE: Respect the user's wake_up and sleep times. Schedule their peak focus blocks around their available hours.
+9. REMINDER: In the \`warrior_note\`, remind them of their \`sacrifice_cost\` and tell them to stop doing things in their \`stop_doing_list\`.
+10. The JSON must have this exact shape:
 {
   "assessment": "2-3 lines of brutal honest reality check about the goal and timeline",
   "weekly_milestones": [
@@ -277,11 +323,11 @@ CRITICAL RULES:
     ],
     "non_negotiable": "The ONE task that cannot be skipped"
   },
-  "warrior_note": "One hard truth about this path"
+  "warrior_note": "One hard truth about this path, reminding them of their sacrifice_cost and commanding them to stop doing items from their stop_doing_list"
 }
 `.trim()
 
-    // 3. Invoke AI
+    // 4. Invoke AI
     let responseText = ""
     try {
       responseText = await callAI(aiClientResult, systemPrompt, userPrompt, 3000)
@@ -350,4 +396,3 @@ CRITICAL RULES:
     )
   }
 }
-

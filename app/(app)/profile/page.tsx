@@ -11,12 +11,11 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { cn, calculateWorkingMondaysLeft } from "@/lib/utils"
 import {
   User,
   Mail,
@@ -33,6 +32,7 @@ import {
   Crosshair,
   Activity,
   ArrowLeft,
+  Hourglass,
 } from "lucide-react"
 
 interface Goal {
@@ -56,6 +56,7 @@ interface DailyReport {
 interface ProfileData {
   full_name: string | null
   avatar_url: string | null
+  birth_date?: string | null
 }
 
 function calculateStreak(reports: DailyReport[]): number {
@@ -213,19 +214,20 @@ export default function ProfilePage() {
   const { t } = useTranslation()
 
   const [isLoading, setIsLoading] = React.useState(true)
-  const [isSavingName, setIsSavingName] = React.useState(false)
+  const [isSavingProfile, setIsSavingProfile] = React.useState(false)
   const [isSigningOut, setIsSigningOut] = React.useState(false)
 
   const [userId, setUserId] = React.useState<string | null>(null)
   const [userEmail, setUserEmail] = React.useState<string>("")
   const [fullName, setFullName] = React.useState<string>("")
+  const [birthDate, setBirthDate] = React.useState<string>("")
 
   const [activeGoal, setActiveGoal] = React.useState<Goal | null>(null)
   const [streak, setStreak] = React.useState<number>(0)
   const [reports, setReports] = React.useState<DailyReport[]>([])
 
-  const [nameSuccess, setNameSuccess] = React.useState<string | null>(null)
-  const [nameError, setNameError] = React.useState<string | null>(null)
+  const [saveSuccess, setSaveSuccess] = React.useState<string | null>(null)
+  const [saveError, setSaveError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     let isMounted = true
@@ -250,7 +252,7 @@ export default function ProfilePage() {
         // 1. Fetch Profile
         const { data: profileData } = await supabase
           .from("profiles")
-          .select("full_name, avatar_url")
+          .select("full_name, avatar_url, birth_date")
           .eq("id", user.id)
           .maybeSingle()
 
@@ -260,6 +262,9 @@ export default function ProfilePage() {
             setFullName(prof.full_name)
           } else if (user.user_metadata?.full_name) {
             setFullName(user.user_metadata.full_name)
+          }
+          if (prof.birth_date) {
+            setBirthDate(prof.birth_date.split("T")[0])
           }
         } else if (user.user_metadata?.full_name && isMounted) {
           setFullName(user.user_metadata.full_name)
@@ -307,14 +312,14 @@ export default function ProfilePage() {
     }
   }, [router])
 
-  const handleUpdateName = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setNameSuccess(null)
-    setNameError(null)
+    setSaveSuccess(null)
+    setSaveError(null)
 
     if (!userId) return
 
-    setIsSavingName(true)
+    setIsSavingProfile(true)
     try {
       const supabase = createClient()
       const { error: upsertError } = await supabase
@@ -323,20 +328,21 @@ export default function ProfilePage() {
           {
             id: userId,
             full_name: fullName.trim(),
+            birth_date: birthDate ? birthDate : null,
           },
           { onConflict: "id" }
         )
 
       if (upsertError) {
-        setNameError(upsertError.message || "Failed to update profile name.")
+        setSaveError(upsertError.message || "Failed to update profile.")
       } else {
-        setNameSuccess(t("Profile updated successfully."))
+        setSaveSuccess(t("Profile updated successfully."))
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "An error occurred."
-      setNameError(msg)
+      setSaveError(msg)
     } finally {
-      setIsSavingName(false)
+      setIsSavingProfile(false)
     }
   }
 
@@ -354,6 +360,7 @@ export default function ProfilePage() {
   }
 
   const probabilityData = calculateProbability(activeGoal, streak, reports)
+  const mondaysLeft = calculateWorkingMondaysLeft(birthDate)
 
   // Circular gauge constants
   const radius = 68
@@ -400,7 +407,60 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* SECTION 1: INTIMIDATING SUCCESS PROBABILITY GAUGE */}
+        {/* SECTION 1: WORKING MONDAYS LEFT (STRIKING MORTALITY DISPLAY) */}
+        <Card className="bg-[#111111] border-2 border-[#8B0000] rounded-xl p-6 sm:p-8 relative overflow-hidden shadow-2xl shadow-[#8B0000]/20">
+          <div className="relative z-10 space-y-5">
+            <div className="flex items-center justify-between border-b border-[#262626] pb-3">
+              <div className="flex items-center gap-2">
+                <Hourglass className="size-4 text-[#8B0000]" />
+                <span className="text-xs font-mono font-bold tracking-widest text-[#8B0000] uppercase">
+                  MORTAL RUNWAY // TEMPORAL HORIZON
+                </span>
+              </div>
+              <span className="text-[11px] font-mono text-[#a3a3a3] uppercase tracking-wider">
+                Baseline: Age 60
+              </span>
+            </div>
+
+            {mondaysLeft !== null ? (
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-4">
+                  <div className="text-6xl sm:text-7xl md:text-8xl font-black font-mono tracking-tighter text-[#f5f5f5]">
+                    {mondaysLeft.toLocaleString()}
+                  </div>
+                  <div className="text-xs sm:text-sm font-mono uppercase tracking-widest text-[#8B0000] font-bold">
+                    Working Mondays Remaining
+                  </div>
+                </div>
+
+                <div className="border-l-2 border-[#8B0000] pl-4 sm:pl-6 py-2 bg-[#1a1a1a]/60 rounded-r-lg">
+                  <p className="text-base sm:text-xl font-bold tracking-tight text-[#f5f5f5] font-sans">
+                    &ldquo;You have roughly {mondaysLeft.toLocaleString()} Mondays left to build your legacy. Do not waste this one.&rdquo;
+                  </p>
+                  <p className="text-xs font-mono text-[#a3a3a3] uppercase tracking-wider mt-1.5">
+                    Calculated from your birth date to age 60 (52 operational weeks per year). Time is finite.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3 py-2">
+                <div className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-[#a3a3a3] uppercase">
+                  MORTAL RUNWAY UNLOCKED BY BIRTH DATE
+                </div>
+                <p className="text-xs sm:text-sm font-mono text-[#a3a3a3] uppercase leading-relaxed">
+                  Date of birth not yet recorded. Save your birth date in the Personal Dossier below to compute your working Mondays remaining.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Watermark icon accent in background */}
+          <div className="absolute -right-6 -bottom-6 pointer-events-none opacity-5 text-[#8B0000]">
+            <Hourglass className="size-48" />
+          </div>
+        </Card>
+
+        {/* SECTION 2: INTIMIDATING SUCCESS PROBABILITY GAUGE */}
         <Card className="bg-[#111111] border-2 border-[#8B0000]/80 rounded-xl p-6 sm:p-8 relative overflow-hidden shadow-2xl shadow-[#8B0000]/15">
           <div className="flex flex-col md:flex-row items-center gap-8 justify-between">
             {/* Left text description */}
@@ -468,7 +528,7 @@ export default function ProfilePage() {
           </div>
         </Card>
 
-        {/* SECTION 2: USER IDENTITY & EDITABLE NAME */}
+        {/* SECTION 3: USER IDENTITY & EDITABLE DOSSIER */}
         <Card className="bg-[#111111] border border-[#262626] rounded-xl p-6 sm:p-8 space-y-6 shadow-xl">
           <CardHeader className="p-0 text-left space-y-1">
             <CardTitle className="text-xl font-black uppercase tracking-tight text-[#f5f5f5] flex items-center gap-2">
@@ -481,28 +541,28 @@ export default function ProfilePage() {
           </CardHeader>
 
           <CardContent className="p-0">
-            <form onSubmit={handleUpdateName} className="space-y-4">
-              {nameError && (
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              {saveError && (
                 <div
                   role="alert"
                   className="flex items-start gap-3 rounded-md border border-[#8B0000]/60 bg-[#8B0000]/10 px-4 py-3 text-sm font-medium text-red-400"
                 >
                   <AlertCircle className="h-5 w-5 shrink-0 text-red-400" />
-                  <span>{nameError}</span>
+                  <span>{saveError}</span>
                 </div>
               )}
 
-              {nameSuccess && (
+              {saveSuccess && (
                 <div
                   role="status"
                   className="flex items-start gap-3 rounded-md border border-emerald-900/60 bg-emerald-950/30 px-4 py-3 text-sm font-medium text-emerald-400"
                 >
                   <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
-                  <span>{nameSuccess}</span>
+                  <span>{saveSuccess}</span>
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Full Name (Editable) */}
                 <div className="space-y-2">
                   <Label
@@ -519,8 +579,28 @@ export default function ProfilePage() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Enter warrior name..."
-                    disabled={isSavingName}
+                    disabled={isSavingProfile}
                     className="h-10 border-[#262626] bg-[#1a1a1a] text-[#f5f5f5] placeholder:text-[#a3a3a3]/40 focus-visible:border-[#8B0000] focus-visible:ring-1 focus-visible:ring-[#8B0000]"
+                  />
+                </div>
+
+                {/* Date of Birth (Editable) */}
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="birth_date"
+                    className="text-xs font-semibold uppercase tracking-wider text-[#a3a3a3] flex items-center gap-2"
+                  >
+                    <Calendar className="h-4 w-4 text-[#8B0000]" />
+                    <span>Date of Birth</span>
+                  </Label>
+                  <Input
+                    id="birth_date"
+                    name="birth_date"
+                    type="date"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                    disabled={isSavingProfile}
+                    className="h-10 border-[#262626] bg-[#1a1a1a] text-[#f5f5f5] placeholder:text-[#a3a3a3]/40 focus-visible:border-[#8B0000] focus-visible:ring-1 focus-visible:ring-[#8B0000] [color-scheme:dark]"
                   />
                 </div>
 
@@ -548,10 +628,10 @@ export default function ProfilePage() {
               <div className="pt-2 flex justify-end">
                 <Button
                   type="submit"
-                  disabled={isSavingName}
+                  disabled={isSavingProfile}
                   className="h-10 bg-[#8B0000] hover:bg-[#6e0000] text-[#f5f5f5] font-bold uppercase tracking-wider text-xs transition-colors cursor-pointer disabled:opacity-50"
                 >
-                  {isSavingName ? (
+                  {isSavingProfile ? (
                     <span className="flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span>{t("Saving...")}</span>
@@ -565,7 +645,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* SECTION 3: CURRENT GOAL & STREAK DETAILS */}
+        {/* SECTION 4: CURRENT GOAL & STREAK DETAILS */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
           {/* ACTIVE OBJECTIVE CARD */}
@@ -665,7 +745,7 @@ export default function ProfilePage() {
 
         </div>
 
-        {/* SECTION 4: SIGN OUT BUTTON */}
+        {/* SECTION 5: SIGN OUT BUTTON */}
         <div className="pt-4 pb-12 border-t border-[#262626] flex items-center justify-between">
           <div className="text-xs font-mono text-[#a3a3a3]/70 uppercase tracking-wider">
             Identity Isolation: Supabase RLS Active

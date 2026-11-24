@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useTranslation } from "@/lib/translations"
+import { Clock, Image as ImageIcon, Flame, Ban, Calendar, Target } from "lucide-react"
 
 export default function NewGoalPage() {
   const router = useRouter()
@@ -22,6 +23,12 @@ export default function NewGoalPage() {
 
   const [title, setTitle] = React.useState("")
   const [why, setWhy] = React.useState("")
+  const [whyImageUrl, setWhyImageUrl] = React.useState("")
+  const [sacrificeCost, setSacrificeCost] = React.useState("")
+  const [stopDoingList, setStopDoingList] = React.useState("")
+  const [decisionDeadline, setDecisionDeadline] = React.useState("")
+  const [wakeUpTime, setWakeUpTime] = React.useState("05:00")
+  const [sleepTime, setSleepTime] = React.useState("22:00")
   const [deadline, setDeadline] = React.useState("")
   const [dailyHours, setDailyHours] = React.useState("")
   const [currentLevel, setCurrentLevel] = React.useState<string | null>(null)
@@ -34,7 +41,7 @@ export default function NewGoalPage() {
     setError(null)
 
     if (!title.trim() || !why.trim() || !deadline || !dailyHours || !currentLevel) {
-      setError("All fields are mandatory. Define your target completely.")
+      setError("Title, Why, Deadline, Daily Hours, and Current Level are required.")
       return
     }
 
@@ -65,6 +72,14 @@ export default function NewGoalPage() {
           user_id: user.id,
           title: title.trim(),
           why: why.trim(),
+          why_image_url: whyImageUrl.trim() || null,
+          sacrifice_cost: sacrificeCost.trim() || null,
+          stop_doing_list: stopDoingList.trim() || null,
+          decision_deadline: decisionDeadline || null,
+          routine: {
+            wake_up_time: wakeUpTime || null,
+            sleep_time: sleepTime || null,
+          },
           deadline,
           daily_hours: hours,
           current_level: currentLevel,
@@ -93,7 +108,8 @@ export default function NewGoalPage() {
     <div className="min-h-screen bg-[#0a0a0a] text-[#f5f5f5] flex items-center justify-center px-4 py-12 selection:bg-[#8B0000] selection:text-[#f5f5f5]">
       <div className="w-full max-w-xl space-y-8 bg-[#111111] border border-[#262626] rounded-xl p-6 sm:p-8 shadow-2xl">
         <div className="space-y-2 text-left">
-          <div className="inline-block text-xs uppercase tracking-widest font-semibold text-[#8B0000]">
+          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-semibold text-[#8B0000]">
+            <Target className="size-3.5" />
             Target Acquisition
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#f5f5f5]">
@@ -122,24 +138,25 @@ export default function NewGoalPage() {
               type="text"
               required
               disabled={isLoading}
-              placeholder="e.g., Crack NEET 2027, Build a SaaS"
+              placeholder="e.g., Crack NEET 2027, Build a SaaS, Sub-3hr Marathon"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="border-[#262626] bg-[#1a1a1a] text-[#f5f5f5] placeholder:text-[#a3a3a3]/50 focus-visible:border-[#8B0000] focus-visible:ring-1 focus-visible:ring-[#8B0000] h-10"
             />
           </div>
 
-          {/* 2. Why it matters */}
+          {/* 2. Why it matters (The Strong Why) */}
           <div className="space-y-2">
-            <Label htmlFor="why" className="text-sm font-semibold tracking-wide text-[#f5f5f5]">
-              Why does this matter? (Be honest, the AI will remember this)
+            <Label htmlFor="why" className="text-sm font-semibold tracking-wide text-[#f5f5f5] flex items-center gap-2">
+              <Flame className="size-3.5 text-[#8B0000]" />
+              The Strong Why (Why does this matter?)
             </Label>
             <Textarea
               id="why"
               name="why"
               required
               disabled={isLoading}
-              placeholder="Explain the stakes. What happens if you fail? What changes when you succeed?"
+              placeholder="Explain the stakes. What happens if you fail? What changes when you succeed? The AI will hold you to this."
               rows={4}
               value={why}
               onChange={(e) => setWhy(e.target.value)}
@@ -147,10 +164,128 @@ export default function NewGoalPage() {
             />
           </div>
 
-          {/* 3. Deadline */}
+          {/* 3. Why Image URL */}
+          <div className="space-y-2">
+            <Label htmlFor="why_image_url" className="text-sm font-semibold tracking-wide text-[#f5f5f5] flex items-center gap-2">
+              <ImageIcon className="size-3.5 text-[#8B0000]" />
+              Visual Anchor Image URL (Optional)
+            </Label>
+            <Input
+              id="why_image_url"
+              name="why_image_url"
+              type="url"
+              disabled={isLoading}
+              placeholder="https://images.unsplash.com/... or any image URL"
+              value={whyImageUrl}
+              onChange={(e) => setWhyImageUrl(e.target.value)}
+              className="border-[#262626] bg-[#1a1a1a] text-[#f5f5f5] placeholder:text-[#a3a3a3]/50 focus-visible:border-[#8B0000] focus-visible:ring-1 focus-visible:ring-[#8B0000] h-10"
+            />
+            <p className="text-[11px] font-mono text-[#a3a3a3]">
+              Displayed prominently on your Dashboard to visually reinforce your purpose daily.
+            </p>
+          </div>
+
+          {/* 4. Sacrifice Cost */}
+          <div className="space-y-2">
+            <Label htmlFor="sacrifice_cost" className="text-sm font-semibold tracking-wide text-[#f5f5f5]">
+              Sacrifice Cost
+            </Label>
+            <Input
+              id="sacrifice_cost"
+              name="sacrifice_cost"
+              type="text"
+              disabled={isLoading}
+              placeholder="e.g., Weekend leisure, social media binges, late-night snacking"
+              value={sacrificeCost}
+              onChange={(e) => setSacrificeCost(e.target.value)}
+              className="border-[#262626] bg-[#1a1a1a] text-[#f5f5f5] placeholder:text-[#a3a3a3]/50 focus-visible:border-[#8B0000] focus-visible:ring-1 focus-visible:ring-[#8B0000] h-10"
+            />
+          </div>
+
+          {/* 5. Stop Doing List */}
+          <div className="space-y-2">
+            <Label htmlFor="stop_doing_list" className="text-sm font-semibold tracking-wide text-[#f5f5f5] flex items-center gap-2">
+              <Ban className="size-3.5 text-[#8B0000]" />
+              Stop Doing List (Vices to Eliminate)
+            </Label>
+            <Textarea
+              id="stop_doing_list"
+              name="stop_doing_list"
+              disabled={isLoading}
+              placeholder="List habits, toxic loops, and time sinks you must completely stop doing."
+              rows={3}
+              value={stopDoingList}
+              onChange={(e) => setStopDoingList(e.target.value)}
+              className="border-[#262626] bg-[#1a1a1a] text-[#f5f5f5] placeholder:text-[#a3a3a3]/50 focus-visible:border-[#8B0000] focus-visible:ring-1 focus-visible:ring-[#8B0000] resize-y"
+            />
+          </div>
+
+          {/* 6. Decision Deadline */}
+          <div className="space-y-2">
+            <Label htmlFor="decision_deadline" className="text-sm font-semibold tracking-wide text-[#f5f5f5] flex items-center gap-2">
+              <Calendar className="size-3.5 text-[#8B0000]" />
+              Decision Deadline
+            </Label>
+            <Input
+              id="decision_deadline"
+              name="decision_deadline"
+              type="date"
+              disabled={isLoading}
+              value={decisionDeadline}
+              onChange={(e) => setDecisionDeadline(e.target.value)}
+              className="border-[#262626] bg-[#1a1a1a] text-[#f5f5f5] [color-scheme:dark] focus-visible:border-[#8B0000] focus-visible:ring-1 focus-visible:ring-[#8B0000] h-10"
+            />
+            <p className="text-[11px] font-mono text-[#a3a3a3]">
+              Date by which you commit to making the hard strategic pivot or critical choice.
+            </p>
+          </div>
+
+          {/* 7. Daily Routine Section */}
+          <div className="rounded-lg border border-[#262626] bg-[#161616] p-4 space-y-4">
+            <div className="flex items-center gap-2 border-b border-[#262626] pb-2">
+              <Clock className="size-4 text-[#8B0000]" />
+              <span className="text-xs font-mono font-bold tracking-widest text-[#f5f5f5] uppercase">
+                Daily Routine Protocol
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="wake_up_time" className="text-xs font-semibold text-[#a3a3a3] uppercase tracking-wider">
+                  Wake Up Time
+                </Label>
+                <Input
+                  id="wake_up_time"
+                  name="wake_up_time"
+                  type="time"
+                  disabled={isLoading}
+                  value={wakeUpTime}
+                  onChange={(e) => setWakeUpTime(e.target.value)}
+                  className="border-[#262626] bg-[#1a1a1a] text-[#f5f5f5] [color-scheme:dark] focus-visible:border-[#8B0000] focus-visible:ring-1 focus-visible:ring-[#8B0000] h-10 font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="sleep_time" className="text-xs font-semibold text-[#a3a3a3] uppercase tracking-wider">
+                  Sleep Time
+                </Label>
+                <Input
+                  id="sleep_time"
+                  name="sleep_time"
+                  type="time"
+                  disabled={isLoading}
+                  value={sleepTime}
+                  onChange={(e) => setSleepTime(e.target.value)}
+                  className="border-[#262626] bg-[#1a1a1a] text-[#f5f5f5] [color-scheme:dark] focus-visible:border-[#8B0000] focus-visible:ring-1 focus-visible:ring-[#8B0000] h-10 font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 8. Target Deadline */}
           <div className="space-y-2">
             <Label htmlFor="deadline" className="text-sm font-semibold tracking-wide text-[#f5f5f5]">
-              Deadline
+              Target Deadline
             </Label>
             <Input
               id="deadline"
@@ -164,7 +299,7 @@ export default function NewGoalPage() {
             />
           </div>
 
-          {/* 4. Daily Hours */}
+          {/* 9. Daily Hours */}
           <div className="space-y-2">
             <Label htmlFor="dailyHours" className="text-sm font-semibold tracking-wide text-[#f5f5f5]">
               Daily hours you can commit
@@ -185,13 +320,13 @@ export default function NewGoalPage() {
             />
           </div>
 
-          {/* 5. Current Level */}
+          {/* 10. Current Level */}
           <div className="space-y-2">
             <Label htmlFor="currentLevel" className="text-sm font-semibold tracking-wide text-[#f5f5f5]">
               Current level
             </Label>
             <Select
-              value={currentLevel}
+              value={currentLevel ?? undefined}
               onValueChange={(val) => setCurrentLevel(val)}
               disabled={isLoading}
             >
@@ -239,4 +374,3 @@ export default function NewGoalPage() {
     </div>
   )
 }
-

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { useTranslation } from "@/lib/translations"
@@ -20,13 +21,21 @@ import {
   RefreshCw,
   Crosshair,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, calculateWorkingMondaysLeft } from "@/lib/utils"
 
 interface Goal {
   id: string
   user_id: string
   title: string
   why: string
+  why_image_url?: string | null
+  sacrifice_cost?: string | null
+  stop_doing_list?: string | null
+  decision_deadline?: string | null
+  routine?: {
+    wake_up_time?: string | null
+    sleep_time?: string | null
+  } | null
   deadline: string
   daily_hours: number
   current_level: string
@@ -72,6 +81,29 @@ function calculateDaysRemaining(
     }
   } catch {
     return { days: 0, text: t("DEADLINE PENDING") }
+  }
+}
+
+function calculateTimeWatch(
+  createdAtStr: string,
+  streak: number
+): { totalDays: number; daysWasted: number; daysWon: number } {
+  try {
+    const createdDate = new Date(createdAtStr)
+    const now = new Date()
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    const createdMidnight = new Date(
+      createdDate.getFullYear(),
+      createdDate.getMonth(),
+      createdDate.getDate()
+    ).getTime()
+    const msPerDay = 1000 * 60 * 60 * 24
+    const totalDays = Math.max(0, Math.floor((todayMidnight - createdMidnight) / msPerDay))
+    const daysWon = streak
+    const daysWasted = Math.max(0, totalDays - daysWon)
+    return { totalDays, daysWasted, daysWon }
+  } catch {
+    return { totalDays: 0, daysWasted: 0, daysWon: streak }
   }
 }
 
@@ -152,6 +184,7 @@ export default function DashboardPage() {
   const [goal, setGoal] = React.useState<Goal | null>(null)
   const [streak, setStreak] = React.useState<number>(0)
   const [latestReport, setLatestReport] = React.useState<DailyReport | null>(null)
+  const [birthDate, setBirthDate] = React.useState<string | null>(null)
 
   const loadDashboardData = React.useCallback(async () => {
     setIsLoading(true)
@@ -194,7 +227,20 @@ export default function DashboardPage() {
       const activeGoal = goalData as Goal
       setGoal(activeGoal)
 
-      // 2. Fetch daily reports to compute streak & get most recent verdict
+      // 2. Fetch user's birth_date from profiles
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("birth_date")
+        .eq("id", user.id)
+        .maybeSingle()
+
+      if (profileData?.birth_date) {
+        setBirthDate(profileData.birth_date)
+      } else {
+        setBirthDate(null)
+      }
+
+      // 3. Fetch daily reports to compute streak & get most recent verdict
       const { data: reportsData, error: reportsErr } = await supabase
         .from("daily_reports")
         .select("id, user_id, date, ai_score, ai_verdict, directive_tomorrow, created_at")
@@ -331,6 +377,8 @@ export default function DashboardPage() {
   // 4. ACTIVE GOAL DASHBOARD
   // =========================================================================
   const deadlineInfo = calculateDaysRemaining(goal.deadline, t)
+  const timeWatch = calculateTimeWatch(goal.created_at, streak)
+  const mondaysLeft = calculateWorkingMondaysLeft(birthDate)
   const lastScore = latestReport?.ai_score ?? null
   const directiveText =
     latestReport?.directive_tomorrow?.trim() ||
@@ -340,7 +388,127 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-[#0a0a0a] text-[#f5f5f5] selection:bg-[#8B0000] selection:text-[#f5f5f5] py-10 px-4 sm:px-6">
       <div className="max-w-4xl mx-auto space-y-8">
 
-        {/* TOP: GOAL TITLE & DEADLINE */}
+        {/* 1. THE WHY CARD - VERY FIRST THING AT THE TOP */}
+        <div className="border-2 border-[#8B0000] bg-[#111111] rounded-xl p-6 sm:p-8 space-y-5 shadow-2xl shadow-[#8B0000]/15 relative overflow-hidden">
+          <div className="flex items-center justify-between border-b border-[#262626] pb-3">
+            <div className="flex items-center gap-2">
+              <Flame className="size-5 text-[#8B0000]" />
+              <span className="text-xs font-mono font-bold tracking-widest text-[#8B0000] uppercase">
+                {t("THE WHY // CORE PURPOSE")}
+              </span>
+            </div>
+            <span className="text-[11px] font-mono text-[#a3a3a3] uppercase tracking-wider hidden sm:block">
+              {t("Non-Negotiable North Star")}
+            </span>
+          </div>
+
+          <div className={cn("grid gap-6 items-center", goal.why_image_url ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1")}>
+            <div className={cn("space-y-4", goal.why_image_url ? "md:col-span-2" : "w-full")}>
+              <div className="text-xs font-mono uppercase tracking-wider text-[#a3a3a3]">
+                {t("The Uncompromising Reason You Fight:")}
+              </div>
+              <blockquote className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-[#f5f5f5] leading-snug break-words italic">
+                &ldquo;{goal.why}&rdquo;
+              </blockquote>
+
+              {(goal.sacrifice_cost || goal.stop_doing_list) && (
+                <div className="pt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-[#1f1f1f]">
+                  {goal.sacrifice_cost && (
+                    <div className="text-xs font-mono">
+                      <span className="text-[#8B0000] font-bold uppercase block tracking-wider mb-0.5">
+                        {t("SACRIFICE REQUIRED")}
+                      </span>
+                      <span className="text-[#f5f5f5]">{goal.sacrifice_cost}</span>
+                    </div>
+                  )}
+                  {goal.stop_doing_list && (
+                    <div className="text-xs font-mono">
+                      <span className="text-[#8B0000] font-bold uppercase block tracking-wider mb-0.5">
+                        {t("PURGED VICES")}
+                      </span>
+                      <span className="text-[#a3a3a3]">{goal.stop_doing_list}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {goal.why_image_url && (
+              <div className="md:col-span-1 relative rounded-lg overflow-hidden border border-[#8B0000]/60 bg-[#1a1a1a] shadow-xl group">
+                <img
+                  src={goal.why_image_url}
+                  alt="The Why Visual Anchor"
+                  className="w-full h-48 sm:h-60 object-cover transition-transform duration-500 group-hover:scale-105"
+                  onError={(e) => {
+                    // Hide image element on broken link
+                    e.currentTarget.style.display = "none"
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                <div className="absolute bottom-2 left-2 text-[10px] font-mono tracking-widest uppercase text-[#f5f5f5] bg-black/80 px-2 py-0.5 rounded border border-[#262626]">
+                  {t("Visual Anchor")}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 2. TIME WATCH WIDGET */}
+        <div className="bg-[#111111] border border-[#262626] rounded-xl p-6 sm:p-8 space-y-4 shadow-xl">
+          <div className="flex items-center justify-between border-b border-[#262626] pb-3">
+            <div className="flex items-center gap-2">
+              <Clock className="size-4 text-[#8B0000]" />
+              <span className="text-xs font-mono font-bold tracking-widest text-[#8B0000] uppercase">
+                {t("TIME WATCH")}
+              </span>
+            </div>
+            <span className="text-xs font-mono text-[#a3a3a3] uppercase tracking-wider">
+              {t("CAMPAIGN DURATION")}: {timeWatch.totalDays} {timeWatch.totalDays === 1 ? t("DAY") : t("DAYS")}
+            </span>
+          </div>
+
+          <div className="p-5 sm:p-7 rounded-lg bg-[#1a1a1a] border border-[#262626] text-center space-y-3">
+            <div className="text-xs font-mono font-bold uppercase tracking-widest text-[#a3a3a3]">
+              {t("TEMPORAL ACCOUNTABILITY")}
+            </div>
+            <div className="text-3xl sm:text-5xl md:text-6xl font-black font-mono tracking-tight text-[#f5f5f5]">
+              DAYS WASTED: <span className="text-[#8B0000]">{timeWatch.daysWasted}</span> | DAYS WON: <span className="text-[#f5f5f5]">{timeWatch.daysWon}</span>
+            </div>
+            <p className="text-xs font-mono text-[#a3a3a3] uppercase tracking-wider">
+              {timeWatch.daysWasted > 0
+                ? `${timeWatch.daysWasted} days lost to hesitation or inaction. Days won = current streak (${timeWatch.daysWon}).`
+                : `Zero days wasted. Unbroken execution since campaign initiation.`}
+            </p>
+          </div>
+        </div>
+
+        {/* 2b. WORKING MONDAYS LEFT WIDGET (BELOW TIME WATCH) */}
+        <div className="bg-[#111111] border border-[#262626] rounded-xl px-6 py-4 flex items-center justify-between shadow-xl">
+          <div className="flex items-center gap-3">
+            <Calendar className="size-4 text-[#8B0000]" />
+            <div className="text-xs sm:text-sm font-mono font-bold uppercase tracking-wider text-[#f5f5f5]">
+              WORKING MONDAYS LEFT:{" "}
+              <span className="text-[#8B0000] font-black text-sm sm:text-base">
+                {mondaysLeft !== null ? mondaysLeft.toLocaleString() : "--"}
+              </span>
+            </div>
+          </div>
+          {mondaysLeft === null ? (
+            <Link
+              href="/profile"
+              className="text-xs font-mono uppercase tracking-wider text-[#a3a3a3] hover:text-[#f5f5f5] flex items-center gap-1 transition-colors"
+            >
+              <span>Set in profile</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
+          ) : (
+            <span className="text-[11px] font-mono text-[#a3a3a3] uppercase tracking-wider hidden sm:inline">
+              Age 60 Threshold
+            </span>
+          )}
+        </div>
+
+        {/* 3. ACTIVE GOAL TITLE & DEADLINE */}
         <div className="bg-[#111111] border border-[#262626] rounded-xl p-6 sm:p-8 space-y-4 shadow-xl">
           <div className="flex items-center justify-between border-b border-[#262626] pb-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-[#8B0000]/60 bg-[#8B0000]/15 px-3 py-1 text-xs font-bold uppercase tracking-widest text-[#8B0000]">
@@ -378,7 +546,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* MIDDLE: TWO LARGE CARDS SIDE-BY-SIDE */}
+        {/* 4. TWO LARGE METRIC CARDS SIDE-BY-SIDE */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
           {/* CARD 1: DAYS UNBROKEN */}
@@ -448,7 +616,7 @@ export default function DashboardPage() {
 
         </div>
 
-        {/* BOTTOM: TODAY'S DIRECTIVE (HEAVY RED-BORDERED BOX) */}
+        {/* 5. TODAY'S DIRECTIVE (HEAVY RED-BORDERED BOX) */}
         <div className="border-2 border-[#8B0000] bg-[#111111] rounded-xl p-6 sm:p-8 space-y-4 shadow-xl shadow-[#8B0000]/10">
           <div className="flex items-center justify-between border-b border-[#262626] pb-3">
             <div className="flex items-center gap-2">
@@ -473,7 +641,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ACTION BUTTON: ENTER TODAY'S MISSION */}
+        {/* 6. ACTION BUTTON: ENTER TODAY'S MISSION */}
         <div className="pt-2">
           <Button
             size="lg"
